@@ -1,0 +1,112 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace LottoGenerator
+{
+    public class Program
+    {
+        static void Main(string[] args)
+        {
+            // Define the lotto pools
+            var pools = new List<Pool>
+            {
+                new Pool(5, 49), // 5 numbers from 1 to 49
+                new Pool(1, 49) // 1 bonus ball from 1 to 49
+            };
+
+            // Get the minimum number of boards required
+            var minBoards = GetMinBoards(pools);
+
+            // Generate the combinations
+            for (int i = 0; i < minBoards; i++)
+            {
+                var board = new List<ushort>();
+                foreach (var pool in pools)
+                {
+                    pool.MoveNext();
+                    board.AddRange(pool.Current);
+                }
+                PrintBoard(i + 1, board);
+                board.Clear();
+            }
+        }
+
+        public static int GetMinBoards(List<Pool> pools)
+        {
+            int minBoards = 0;
+            foreach (var pool in pools)
+            {
+                minBoards = Math.Max(minBoards, (int)Math.Ceiling((double)pool.MaxNumber / pool.Selections));
+            }
+            return minBoards;
+        }
+
+        public static void PrintBoard(int boardNumber, List<ushort> board)
+        {
+            Console.WriteLine($"Board {boardNumber}: {string.Join(" ", board)}");
+        }
+    }
+
+    public class Pool : IEnumerator<List<ushort>>
+    {
+        private static Random _random = new Random();
+        private List<ushort> _available;
+        private List<ushort> _current;
+
+        public ushort Selections { get; }
+        public ushort MaxNumber { get; }
+
+        public Pool(ushort selections, ushort maxNumber)
+        {
+            Selections = selections;
+            MaxNumber = maxNumber;
+            _available = LoadAvailable(maxNumber);
+            _current = new List<ushort>();
+        }
+
+        public bool MoveNext()
+        {
+            if (_available.Count < Selections)
+            {
+                _available = LoadAvailable(MaxNumber, _current);
+            }
+
+            while (_current.Count < Selections)
+            {
+                int pick = _random.Next(0, _available.Count - 1);
+                _current.Add(_available[pick]);
+                _available.RemoveAt(pick);
+                if (!_available.Any())
+                {
+                    _available = LoadAvailable(MaxNumber, _current);
+                }
+            }
+
+            _current.Sort();
+            return true;
+        }
+
+        public void Reset()
+        {
+            _current.Clear();
+        }
+
+        public List<ushort> Current => _current;
+
+        object IEnumerator.Current => Current;
+
+        private List<ushort> LoadAvailable(ushort maxNumber, List<ushort> current = null)
+        {
+            var available = new List<ushort>();
+            for (ushort i = 1; i <= maxNumber; i++)
+            {
+                if (!current.Contains(i))
+                {
+                    available.Add(i);
+                }
+            }
+            return available;
+        }
+    }
+}
